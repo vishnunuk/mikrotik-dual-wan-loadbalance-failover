@@ -148,11 +148,11 @@ add chain=output protocol=udp dst-port=123 action=accept comment="Bypass: NTP"
 }
 
 # Restore Connection Mark for Return Traffic
-add chain=prerouting connection-state=established,related in-interface=$WAN1Interface connection-mark=no-mark \
+add chain=prerouting in-interface=$WAN1Interface connection-mark=no-mark \
     action=mark-connection new-connection-mark=ISP1_conn passthrough=yes \
     comment="Return: WAN1"
 
-add chain=prerouting connection-state=established,related in-interface=$WAN2Interface connection-mark=no-mark \
+add chain=prerouting in-interface=$WAN2Interface connection-mark=no-mark \
     action=mark-connection new-connection-mark=ISP2_conn passthrough=yes \
     comment="Return: WAN2"
 
