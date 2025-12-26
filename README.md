@@ -26,7 +26,7 @@ Perfect for home offices, small businesses, and anyone needing reliable internet
 - ✅ **Comprehensive Cleanup** - Automatically clears stuck connections AND disables ALL ISP-specific mangle rules during failover (PCC, Return, DNS, NTP)
 - ✅ **Cross-ISP Failover** - Traffic marked for ISP1 can fail over to ISP2 and vice versa
 - ✅ **Failsafe Routes** - High-distance (250+) static routes provide a "last resort" connection to prevent total blackout if variables are misconfigured.
-- ✅ **Email Notifications** - Configurable alerts for long-duration outages (e.g., 1h, 6h) via Email/Gmail.
+- ✅ **Email Notifications** - Configurable alerts for 1h, 6h, and **Daily Reminders** (every 24h) for ongoing outages.
 
 ### Network Configuration
 - ✅ **LAN Bridge** - Automatically creates bridge with ether3, ether4, ether5 for LAN connectivity
@@ -280,6 +280,10 @@ Receive notifications if an ISP stays down for too long:
 :local lEmailAddress "your-email@gmail.com"
 :local lEmailPassword "your-app-password"
 ```
+*   **1 Hour Alert**: Sent once.
+*   **6 Hour Alert**: Sent once.
+*   **Daily Reminder**: Sent every 24 hours if the ISP remains down.
+
 *Note: Uses GMAIL settings (smtp.gmail.com:587) by default. To use another provider, edit the `/tool e-mail set` command at the bottom of the script.*
 ```
 

@@ -432,6 +432,7 @@ add name="failover-logic" source=":global ISP1MonitorIP1; :global ISP1MonitorIP2
     :do {
         :local tick1 (\$NotifyDelay1 * 6); # Convert minutes to 10s ticks (x6)
         :local tick2 (\$NotifyDelay2 * 6)
+        :local tickDaily 8640; # 24 Hours (24 * 60 * 6)
 
         :local isStable true
         :if ([/system resource get uptime] < 1m) do={ 
@@ -510,6 +511,10 @@ add name="failover-logic" source=":global ISP1MonitorIP1; :global ISP1MonitorIP2
                         :log error (\"[FAILOVER] Sending 6h Alert for ISP1...\")
                         :do { /tool e-mail send to=\$EmailTo subject=\"[DualWAN] ISP1 Critical Alert (6h)\" body=\"ISP1 has been down for 6 Hours.\" } on-error={ :log error \"[FAILOVER] Email Failed\" }
                     }
+                    :if ((\$ISP1FailCount > \$tick2) && (\$ISP1FailCount % \$tickDaily = 0)) do={
+                        :log error (\"[FAILOVER] Sending Daily Reminder for ISP1...\")
+                        :do { /tool e-mail send to=\$EmailTo subject=\"[DualWAN] ISP1 STILL DOWN (24h Reminder)\" body=\"ISP1 has been down for another 24 hours.\" } on-error={ :log error \"[FAILOVER] Email Failed\" }
+                    }
                 }
             } else={
                 :if (\$ISP1Status = \"down\") do={
@@ -548,6 +553,10 @@ add name="failover-logic" source=":global ISP1MonitorIP1; :global ISP1MonitorIP2
                     :if (\$ISP2FailCount = \$tick2) do={
                         :log error (\"[FAILOVER] Sending 6h Alert for ISP2...\")
                         :do { /tool e-mail send to=\$EmailTo subject=\"[DualWAN] ISP2 Critical Alert (6h)\" body=\"ISP2 has been down for 6 Hours.\" } on-error={ :log error \"[FAILOVER] Email Failed\" }
+                    }
+                    :if ((\$ISP2FailCount > \$tick2) && (\$ISP2FailCount % \$tickDaily = 0)) do={
+                        :log error (\"[FAILOVER] Sending Daily Reminder for ISP2...\")
+                        :do { /tool e-mail send to=\$EmailTo subject=\"[DualWAN] ISP2 STILL DOWN (24h Reminder)\" body=\"ISP2 has been down for another 24 hours.\" } on-error={ :log error \"[FAILOVER] Email Failed\" }
                     }
                 }
             } else={
