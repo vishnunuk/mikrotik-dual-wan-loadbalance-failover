@@ -42,6 +42,13 @@
 :local lEmailAddress "your-email@gmail.com"
 :local lEmailPassword "your-app-password"
 
+# SYSTEM SETTINGS
+:local lTimeZone "Asia/Kolkata"
+:local lDNSServers "1.1.1.1,1.0.0.1,8.8.8.8,8.8.4.4"
+
+# DHCP SETTINGS
+:local lDHCPPoolRange "192.168.100.100-192.168.100.200"
+
 # Export to Globals for persistence script
 :global ISP1MonitorIP1 $lISP1MonitorIP1; :global ISP1MonitorIP2 $lISP1MonitorIP2
 :global ISP2MonitorIP1 $lISP2MonitorIP1; :global ISP2MonitorIP2 $lISP2MonitorIP2
@@ -154,7 +161,7 @@ add address=$lLANAddress interface=$lLANInterface comment="LAN"
 # ==============================================================================
 /ip pool
 :do { remove [find name="lan-dhcp-pool"] } on-error={}
-add name=lan-dhcp-pool ranges=("192.168.100.100-192.168.100.200") comment="LAN DHCP Pool"
+add name=lan-dhcp-pool ranges=($lDHCPPoolRange) comment="LAN DHCP Pool"
 
 /ip dhcp-server
 :do { remove [find name="lan-dhcp"] } on-error={}
@@ -379,7 +386,7 @@ add dst-address=0.0.0.0/0 gateway=$lWAN1Gateway routing-table=ISP2 distance=2 co
 # DNS CONFIGURATION
 # ==============================================================================
 /ip dns
-set servers=1.1.1.1,1.0.0.1,8.8.8.8,8.8.4.4 allow-remote-requests=yes cache-size=32768KiB cache-max-ttl=1d
+set servers=$lDNSServers allow-remote-requests=yes cache-size=32768KiB cache-max-ttl=1d
 
 # ==============================================================================
 # DUAL-IP FAILOVER SCHEDULER
@@ -600,7 +607,7 @@ set winbox address=$lLANSubnet disabled=no
 # ==============================================================================
 :do { /tool e-mail set server="smtp.gmail.com" port=587 tls=starttls from="DualWAN-Router" user="$lEmailAddress" password="$lEmailPassword" } on-error={ :put "WARNING: Email config failed"; :log warning "Email config failed" }
 
-/system clock set time-zone-name=Asia/Kolkata
+/system clock set time-zone-name=$lTimeZone
 /system identity set name="DualWAN-Router"
 
 # Critical: Prevent firewall bypass via IPv6 (since we have no IPv6 filter)

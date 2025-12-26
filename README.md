@@ -106,6 +106,11 @@ Open `mikrotik-dual-wan.rsc` and configure your network:
 :local lEmailEnable true
 :local lEmailAddress "your-email@gmail.com"
 :local lEmailPassword "your-app-password"
+
+# System & Network
+:local lTimeZone "Asia/Kolkata"
+:local lDNSServers "1.1.1.1,1.0.0.1,8.8.8.8,8.8.4.4"
+:local lDHCPPoolRange "192.168.100.100-192.168.100.200"
 ```
 
 ### 3. Upload to Router
