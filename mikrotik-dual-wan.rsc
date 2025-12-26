@@ -305,6 +305,9 @@ add chain=output connection-mark=ISP2_conn \
     action=mark-routing new-routing-mark=ISP2 passthrough=no \
     comment="Output: Route ISP2"
 
+# MSS Clamping (Crucial for PPPoE/VPN/Dual WAN)
+add chain=forward protocol=tcp tcp-flags=syn action=change-mss new-mss=clamp-to-pmtu passthrough=yes comment="BS: Clamp MSS to PMTU"
+
 # ==============================================================================
 # NAT CONFIGURATION
 # ==============================================================================
