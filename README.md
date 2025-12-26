@@ -26,6 +26,7 @@ Perfect for home offices, small businesses, and anyone needing reliable internet
 - ✅ **Comprehensive Cleanup** - Automatically clears stuck connections AND disables ALL ISP-specific mangle rules during failover (PCC, Return, DNS, NTP)
 - ✅ **Cross-ISP Failover** - Traffic marked for ISP1 can fail over to ISP2 and vice versa
 - ✅ **Failsafe Routes** - High-distance (250+) static routes provide a "last resort" connection to prevent total blackout if variables are misconfigured.
+- ✅ **Email Notifications** - Configurable alerts for long-duration outages (e.g., 1h, 6h) via Email/Gmail.
 
 ### Network Configuration
 - ✅ **LAN Bridge** - Automatically creates bridge with ether3, ether4, ether5 for LAN connectivity
@@ -98,6 +99,13 @@ Open `mikrotik-dual-wan.rsc` and configure your network:
 :local lCheckInterval "10s"
 :local lLBRatio1 1
 :local lLBRatio2 1
+
+# Email Notifications
+:local lNotifyDelay1 60;   # Alert 1: 1 Hour (in minutes)
+:local lNotifyDelay2 360;  # Alert 2: 6 Hours (in minutes)
+:local lEmailEnable true
+:local lEmailAddress "your-email@gmail.com"
+:local lEmailPassword "your-app-password"
 ```
 
 ### 3. Upload to Router
@@ -256,6 +264,18 @@ If you have extra memory:
 ### Prefer One ISP Over Another
 ```routeros
 :local lPreferredISP "ISP1"  # or "ISP2"
+```
+
+### Configure Email Alerts
+Receive notifications if an ISP stays down for too long:
+```routeros
+:local lNotifyDelay1 60    # First alert after 60 minutes
+:local lNotifyDelay2 360   # Critical alert after 6 hours
+:local lEmailEnable true   # Enable/Disable emails
+:local lEmailAddress "your-email@gmail.com"
+:local lEmailPassword "your-app-password"
+```
+*Note: Uses GMAIL settings (smtp.gmail.com:587) by default. To use another provider, edit the `/tool e-mail set` command at the bottom of the script.*
 ```
 
 ---
