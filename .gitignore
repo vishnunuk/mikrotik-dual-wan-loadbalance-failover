@@ -1,0 +1,7 @@
+*.backup
+*.rsc.backup
+*.swp
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
