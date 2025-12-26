@@ -122,6 +122,8 @@ Open `mikrotik-dual-wan.rsc` and configure your network:
 > **This script will RESET your router configuration!**
 > It clears existing firewall rules, mangle rules, NAT, and routes to ensure a clean setup.
 > The script is fully automated and will execute immediately upon import.
+>
+> 🛑 **DO NOT RUN REMOTELY**: Attempting to run this over a VPN, WireGuard, or remote tunnel will result in an immediate **LOCKOUT**. The script deletes the LAN bridge you are connected to. You **must** be physically present or connected via a failsafe out-of-band management port.
 
 ```routeros
 /import mikrotik-dual-wan.rsc
