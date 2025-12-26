@@ -27,6 +27,7 @@ Perfect for home offices, small businesses, and anyone needing reliable internet
 - ✅ **Cross-ISP Failover** - Traffic marked for ISP1 can fail over to ISP2 and vice versa
 - ✅ **Failsafe Routes** - High-distance (250+) static routes provide a "last resort" connection to prevent total blackout if variables are misconfigured.
 - ✅ **Email Notifications** - Configurable alerts for 1h, 6h, and **Daily Reminders** (every 24h) for ongoing outages.
+- ✅ **Security Hardening** - Strict firewall rules limit management access (WinBox/SSH) to LAN only. **MAC WinBox** is also strictly limited to the LAN bridge to prevent Layer 2 exposure on WAN ports.
 
 ### Network Configuration
 - ✅ **LAN Bridge** - Automatically creates bridge with ether3, ether4, ether5 for LAN connectivity

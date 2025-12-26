@@ -104,12 +104,16 @@ add name=ISP2 fib comment=$lISP2Name
 /interface list
 :do { remove [find name="WAN"] } on-error={}
 add name=WAN comment="WAN Interfaces for Security Rules"
+:do { remove [find name="LAN"] } on-error={}
+add name=LAN comment="LAN Interfaces for Management"
 
 /interface list member
 :do { /interface list member remove [/interface list member find interface=$lWAN1Interface] } on-error={}
 :do { /interface list member remove [/interface list member find interface=$lWAN2Interface] } on-error={}
 :if ([:len $lWAN1Interface] > 0) do={ add list=WAN interface=$lWAN1Interface comment="WAN1" }
 :if ([:len $lWAN2Interface] > 0) do={ add list=WAN interface=$lWAN2Interface comment="WAN2" }
+:do { /interface list member remove [/interface list member find interface=$lLANInterface] } on-error={}
+add list=LAN interface=$lLANInterface comment="LAN Bridge"
 
 # ==============================================================================
 # BRIDGE CONFIGURATION
@@ -135,6 +139,10 @@ add bridge=$lLANInterface interface=$lLANPort3 comment="LAN Port 3"
 add address=$lLANSubnet list=LocalTraffic comment="LAN Subnet"
 add address=$lWAN1Subnet list=LocalTraffic comment="WAN1 Subnet"
 add address=$lWAN2Subnet list=LocalTraffic comment="WAN2 Subnet"
+
+# Secure Management List (LAN Only)
+:do { remove [/ip firewall address-list find list="Management"] } on-error={}
+add address=$lLANSubnet list=Management comment="Protected: Management Access"
 
 /ip firewall address-list
 :do { remove [/ip firewall address-list find list="MonitorIPs"] } on-error={}
@@ -309,13 +317,13 @@ add chain=srcnat out-interface-list=WAN action=masquerade comment="NAT: WAN-awar
 add chain=input connection-state=invalid action=drop comment="Drop: Invalid Input"
 add chain=forward connection-state=invalid action=drop comment="Drop: Invalid Forward"
 
-# Allow WinBox and SSH from LAN only
-add chain=input protocol=tcp dst-port=8291 src-address-list=LocalTraffic action=accept comment="Accept: WinBox (LAN only)"
-add chain=input protocol=tcp dst-port=22 src-address-list=LocalTraffic action=accept comment="Accept: SSH (LAN only)"
+# Allow WinBox and SSH from Management List ONLY
+add chain=input protocol=tcp dst-port=8291 src-address-list=Management action=accept comment="Accept: WinBox (LAN Only)"
+add chain=input protocol=tcp dst-port=22 src-address-list=Management action=accept comment="Accept: SSH (LAN Only)"
 
-# Allow GUI and API from LAN only
-add chain=input protocol=tcp dst-port=80 src-address-list=LocalTraffic action=accept comment="Accept: HTTP (LAN only)"
-add chain=input protocol=tcp dst-port=8728 src-address-list=LocalTraffic action=accept comment="Accept: API (LAN only)"
+# Allow GUI and API from Management List ONLY
+add chain=input protocol=tcp dst-port=80 src-address-list=Management action=accept comment="Accept: HTTP (LAN Only)"
+add chain=input protocol=tcp dst-port=8728 src-address-list=Management action=accept comment="Accept: API (LAN Only)"
 
 # Accept Established/Related
 add chain=input connection-state=established,related action=accept comment="Accept: Established Input"
@@ -339,6 +347,11 @@ add chain=forward in-interface-list=WAN out-interface=$lLANInterface connection-
 # Drop WAN Input (Security)
 add chain=input in-interface=$lWAN1Interface action=drop comment="Drop: WAN1 Input"
 add chain=input in-interface=$lWAN2Interface action=drop comment="Drop: WAN2 Input"
+
+# RAW FILTER (Stop SYN Flood Alerts)
+/ip firewall raw
+add chain=prerouting protocol=tcp dst-port=8291 src-address-list=!Management action=drop comment="Drop: WinBox from Internet"
+add chain=prerouting protocol=tcp dst-port=22 src-address-list=!Management action=drop comment="Drop: SSH from Internet"
 
 # FINAL DROP RULES (Default Deny Policy)
 add chain=input action=drop comment="Drop: All other input"
@@ -610,6 +623,10 @@ set ssh disabled=yes
 set api disabled=yes
 set api-ssl disabled=yes
 set winbox address=$lLANSubnet disabled=no
+
+# MAC Server Security (Layer 2)
+:do { /tool mac-server set allowed-interface-list=LAN } on-error={}
+:do { /tool mac-server mac-winbox set allowed-interface-list=LAN } on-error={}
 
 # ==============================================================================
 # SYSTEM CONFIGURATION
