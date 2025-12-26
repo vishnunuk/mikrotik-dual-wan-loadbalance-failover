@@ -35,6 +35,13 @@
 :local lLBRatio1 1
 :local lLBRatio2 1
 
+# NOTIFICATION CONFIGURATION
+:local lNotifyDelay1 60;   # Alert 1: 1 Hour (in minutes)
+:local lNotifyDelay2 360;  # Alert 2: 6 Hours (in minutes)
+:local lEmailEnable true
+:local lEmailAddress "your-email@gmail.com"
+:local lEmailPassword "your-app-password"
+
 # Export to Globals for persistence script
 :global ISP1MonitorIP1 $lISP1MonitorIP1; :global ISP1MonitorIP2 $lISP1MonitorIP2
 :global ISP2MonitorIP1 $lISP2MonitorIP1; :global ISP2MonitorIP2 $lISP2MonitorIP2
@@ -42,6 +49,8 @@
 :global WAN1Address $lWAN1Address; :global WAN2Address $lWAN2Address
 :global WAN1Gateway $lWAN1Gateway; :global WAN2Gateway $lWAN2Gateway
 :global FailureThreshold $lFailureThreshold; :global PreferredISP $lPreferredISP
+:global NotifyDelay1 $lNotifyDelay1; :global NotifyDelay2 $lNotifyDelay2
+:global EmailEnable $lEmailEnable; :global EmailTo $lEmailAddress
 
 # ==============================================================================
 
@@ -392,7 +401,7 @@ set servers=1.1.1.1,1.0.0.1,8.8.8.8,8.8.4.4 allow-remote-requests=yes cache-size
 
 # Define dual-wan-config here (after reset) so it survives
 :do { remove [find name="dual-wan-config"] } on-error={}
-add name="dual-wan-config" source=(":global ISP1MonitorIP1 \"" . $lISP1MonitorIP1 . "\"; :global ISP1MonitorIP2 \"" . $lISP1MonitorIP2 . "\"; :global ISP2MonitorIP1 \"" . $lISP2MonitorIP1 . "\"; :global ISP2MonitorIP2 \"" . $lISP2MonitorIP2 . "\"; :global WAN1Address \"" . $lWAN1Address . "\"; :global WAN2Address \"" . $lWAN2Address . "\"; :global WAN1Gateway \"" . $lWAN1Gateway . "\"; :global WAN2Gateway \"" . $lWAN2Gateway . "\"; :global FailureThreshold " . $lFailureThreshold . "; :global PreferredISP \"" . $lPreferredISP . "\"; :global WAN1Interface \"" . $lWAN1Interface . "\"; :global WAN2Interface \"" . $lWAN2Interface . "\"")
+add name="dual-wan-config" source=(":global ISP1MonitorIP1 \"" . $lISP1MonitorIP1 . "\"; :global ISP1MonitorIP2 \"" . $lISP1MonitorIP2 . "\"; :global ISP2MonitorIP1 \"" . $lISP2MonitorIP1 . "\"; :global ISP2MonitorIP2 \"" . $lISP2MonitorIP2 . "\"; :global WAN1Address \"" . $lWAN1Address . "\"; :global WAN2Address \"" . $lWAN2Address . "\"; :global WAN1Gateway \"" . $lWAN1Gateway . "\"; :global WAN2Gateway \"" . $lWAN2Gateway . "\"; :global FailureThreshold " . $lFailureThreshold . "; :global PreferredISP \"" . $lPreferredISP . "\"; :global WAN1Interface \"" . $lWAN1Interface . "\"; :global WAN2Interface \"" . $lWAN2Interface . "\"; :global NotifyDelay1 " . $lNotifyDelay1 . "; :global NotifyDelay2 " . $lNotifyDelay2 . "; :global EmailEnable " . $lEmailEnable . "; :global EmailTo \"" . $lEmailAddress . "\"")
 
 :do { remove [/system script find name="failover-logic"] } on-error={}
 add name="failover-logic" source=":global ISP1MonitorIP1; :global ISP1MonitorIP2
@@ -404,6 +413,9 @@ add name="failover-logic" source=":global ISP1MonitorIP1; :global ISP1MonitorIP2
     :global ISP1Status; :global ISP2Status
     :global ISP1FailCount; :global ISP2FailCount
 
+    :global NotifyDelay1; :global NotifyDelay2
+    :global EmailEnable; :global EmailTo
+
     # SELF-HEALING: If globals are missing (e.g., failed startup race), reload them.
     :if ([:typeof \$WAN1Interface] = \"nothing\" || [:len \$WAN1Interface] = 0) do={
         :log warning \"[FAILOVER] Globals missing. Attempting reload...\"
@@ -411,6 +423,9 @@ add name="failover-logic" source=":global ISP1MonitorIP1; :global ISP1MonitorIP2
     }
 
     :do {
+        :local tick1 (\$NotifyDelay1 * 6); # Convert minutes to 10s ticks (x6)
+        :local tick2 (\$NotifyDelay2 * 6)
+
         :local isStable true
         :if ([/system resource get uptime] < 1m) do={ 
             :log info \"[FAILOVER] Startup safety wait. Skipping check.\"
@@ -477,6 +492,18 @@ add name="failover-logic" source=":global ISP1MonitorIP1; :global ISP1MonitorIP2
                         :foreach i in=[/ip firewall mangle find where comment~\"ISP1\" and comment!~\"Monitor\"] do={ /ip firewall mangle disable \$i }
                     }
                 }
+                
+                # NOTIFICATIONS
+                :if (\$EmailEnable = true) do={
+                    :if (\$ISP1FailCount = \$tick1) do={
+                        :log warning (\"[FAILOVER] Sending 1h Alert for ISP1...\")
+                        :do { /tool e-mail send to=\$EmailTo subject=\"[DualWAN] ISP1 Down Alert (1h)\" body=\"ISP1 has been down for 1 Hour.\" } on-error={ :log error \"[FAILOVER] Email Failed\" }
+                    }
+                    :if (\$ISP1FailCount = \$tick2) do={
+                        :log error (\"[FAILOVER] Sending 6h Alert for ISP1...\")
+                        :do { /tool e-mail send to=\$EmailTo subject=\"[DualWAN] ISP1 Critical Alert (6h)\" body=\"ISP1 has been down for 6 Hours.\" } on-error={ :log error \"[FAILOVER] Email Failed\" }
+                    }
+                }
             } else={
                 :if (\$ISP1Status = \"down\") do={
                     :set ISP1Status \"up\"; :set ISP1FailCount 0
@@ -502,6 +529,18 @@ add name="failover-logic" source=":global ISP1MonitorIP1; :global ISP1MonitorIP2
                         
                         :foreach i in=[/ip route find where comment~\"ISP2\" and comment!~\"Monitor\"] do={ /ip route disable \$i }
                         :foreach i in=[/ip firewall mangle find where comment~\"ISP2\" and comment!~\"Monitor\"] do={ /ip firewall mangle disable \$i }
+                    }
+                }
+
+                # NOTIFICATIONS
+                :if (\$EmailEnable = true) do={
+                    :if (\$ISP2FailCount = \$tick1) do={
+                        :log warning (\"[FAILOVER] Sending 1h Alert for ISP2...\")
+                        :do { /tool e-mail send to=\$EmailTo subject=\"[DualWAN] ISP2 Down Alert (1h)\" body=\"ISP2 has been down for 1 Hour.\" } on-error={ :log error \"[FAILOVER] Email Failed\" }
+                    }
+                    :if (\$ISP2FailCount = \$tick2) do={
+                        :log error (\"[FAILOVER] Sending 6h Alert for ISP2...\")
+                        :do { /tool e-mail send to=\$EmailTo subject=\"[DualWAN] ISP2 Critical Alert (6h)\" body=\"ISP2 has been down for 6 Hours.\" } on-error={ :log error \"[FAILOVER] Email Failed\" }
                     }
                 }
             } else={
@@ -559,6 +598,8 @@ set winbox address=$lLANSubnet disabled=no
 # ==============================================================================
 # SYSTEM CONFIGURATION
 # ==============================================================================
+:do { /tool e-mail set server="smtp.gmail.com" port=587 tls=starttls from="DualWAN-Router" user="$lEmailAddress" password="$lEmailPassword" } on-error={ :put "WARNING: Email config failed"; :log warning "Email config failed" }
+
 /system clock set time-zone-name=Asia/Kolkata
 /system identity set name="DualWAN-Router"
 
