@@ -107,13 +107,7 @@ add name=WAN comment="WAN Interfaces for Security Rules"
 :do { remove [find name="LAN"] } on-error={}
 add name=LAN comment="LAN Interfaces for Management"
 
-/interface list member
-:do { /interface list member remove [/interface list member find interface=$lWAN1Interface] } on-error={}
-:do { /interface list member remove [/interface list member find interface=$lWAN2Interface] } on-error={}
-:if ([:len $lWAN1Interface] > 0) do={ add list=WAN interface=$lWAN1Interface comment="WAN1" }
-:if ([:len $lWAN2Interface] > 0) do={ add list=WAN interface=$lWAN2Interface comment="WAN2" }
-:do { /interface list member remove [/interface list member find interface=$lLANInterface] } on-error={}
-add list=LAN interface=$lLANInterface comment="LAN Bridge"
+
 
 # ==============================================================================
 # BRIDGE CONFIGURATION
@@ -130,6 +124,17 @@ add name=$lLANInterface comment="LAN Bridge"
 add bridge=$lLANInterface interface=$lLANPort1 comment="LAN Port 1"
 add bridge=$lLANInterface interface=$lLANPort2 comment="LAN Port 2"
 add bridge=$lLANInterface interface=$lLANPort3 comment="LAN Port 3"
+
+# ==============================================================================
+# INTERFACE LIST MEMBERS (Must be after Bridge creation)
+# ==============================================================================
+/interface list member
+:do { /interface list member remove [/interface list member find interface=$lWAN1Interface] } on-error={}
+:do { /interface list member remove [/interface list member find interface=$lWAN2Interface] } on-error={}
+:if ([:len $lWAN1Interface] > 0) do={ add list=WAN interface=$lWAN1Interface comment="WAN1" }
+:if ([:len $lWAN2Interface] > 0) do={ add list=WAN interface=$lWAN2Interface comment="WAN2" }
+:do { /interface list member remove [/interface list member find interface=$lLANInterface] } on-error={}
+add list=LAN interface=$lLANInterface comment="LAN Bridge"
 
 # ==============================================================================
 # IP ADDRESS & ADDRESS LISTS
