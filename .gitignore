@@ -6,3 +6,5 @@ Thumbs.db
 .vscode/
 .idea/
 local/
+.playwright-mcp
+docs/superpowers/
