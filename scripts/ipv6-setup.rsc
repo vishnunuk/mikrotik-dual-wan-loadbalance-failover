@@ -25,13 +25,12 @@
 
 :put "Configurando IPv6 dual-stack..."
 
-# --- 1. Limpa regra do script principal que rejeita IPv6 forward ---
-:do { /ipv6 firewall filter remove [find where comment~"Reject: All IPv6 forward"] } on-error={}
-
 # --- 2. Stack IPv6 ---
-# accept-RA whitelist nas WANs (nao LAN — evita rogue RA injection).
-# forward=yes pra router rotear IPv6 entre interfaces.
-/ipv6 settings set disable-ipv6=no forward=yes disable-link-local-address=no accept-router-advertisements=yes accept-router-advertisements-on=($lClaroIf . "," . $lVivoIf)
+# accept-RA=all aplica em todas interfaces. LAN nao recebe RA externo porque
+# bridge-lan eh o sender (configurado em /ipv6 nd), nao receiver — RouterOS
+# nao usa RAs recebidos em interface onde ele proprio envia RAs.
+# RouterOS 7.22.1 ainda nao suporta whitelist de interfaces aqui (so enum).
+/ipv6 settings set disable-ipv6=no forward=yes disable-link-local-address=no accept-router-advertisements=yes accept-router-advertisements-on=all
 
 # --- 3. Reconnect pppoe-vivo pra forcar IPv6CP ---
 # Pula se pppoe-vivo nao existir (script principal puro, sem vivo-pppoe.rsc).
@@ -48,7 +47,7 @@
 :do { /ipv6 dhcp-client remove [find where comment~"DHCPv6: Vivo"] } on-error={}
 /ipv6 dhcp-client add interface=$lVivoIf request=prefix add-default-route=yes default-route-distance=1 use-peer-dns=no pool-name=vivo-pd6 pool-prefix-length=64 comment="DHCPv6: Vivo PD"
 
-# Claro: SLAAC e default route automaticos via accept-RA whitelist (acima), nada a configurar.
+# Claro: SLAAC e default route automaticos via accept-RA=all (acima), nada a configurar.
 
 # ECMP IPv6: dois default routes a distance=1 (Vivo via PPP/DHCPv6, Claro via SLAAC RA).
 # Kernel faz hash. NAT66 nas saidas garante uRPF OK (cada conn pinned por conntrack).
@@ -97,6 +96,8 @@
 # --- 9. Firewall IPv6 forward + FastTrack ---
 # FastTrack ANTES de qualquer outra regra (matched conns bypassam conntrack/firewall).
 # Drop invalid logo depois pra rejeitar conns malformadas que escaparam FastTrack.
+# remove [find where chain=forward] tambem remove a regra "Reject: All IPv6 forward"
+# do script principal — substituida pelas regras abaixo (drop default no fim cobre).
 :do { /ipv6 firewall filter remove [find where chain=forward] } on-error={}
 /ipv6 firewall filter add chain=forward action=fasttrack-connection connection-state=established,related comment="FastTrack: Established/Related"
 /ipv6 firewall filter add chain=forward action=drop connection-state=invalid comment="Drop: Invalid Forward"
