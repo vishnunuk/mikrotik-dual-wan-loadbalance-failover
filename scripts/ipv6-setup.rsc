@@ -84,3 +84,14 @@
 /ipv6 firewall filter add chain=input action=accept in-interface=$lLanIf comment="Accept: LAN Input"
 /ipv6 firewall filter add chain=input action=accept protocol=udp dst-port=546 comment="Accept: DHCPv6 client"
 /ipv6 firewall filter add chain=input action=drop comment="Drop: WAN Input (default)"
+
+# --- 9. Firewall IPv6 forward + FastTrack ---
+# FastTrack ANTES de qualquer outra regra (matched conns bypassam conntrack/firewall).
+# Drop invalid logo depois pra rejeitar conns malformadas que escaparam FastTrack.
+:do { /ipv6 firewall filter remove [find where chain=forward] } on-error={}
+/ipv6 firewall filter add chain=forward action=fasttrack-connection connection-state=established,related comment="FastTrack: Established/Related"
+/ipv6 firewall filter add chain=forward action=drop connection-state=invalid comment="Drop: Invalid Forward"
+/ipv6 firewall filter add chain=forward action=accept connection-state=established,related,untracked comment="Accept: Established Forward"
+/ipv6 firewall filter add chain=forward action=accept src-address-list=LocalTraffic6 comment="Accept: LAN New Forward"
+/ipv6 firewall filter add chain=forward action=accept protocol=icmpv6 hop-limit=equal:1 comment="Accept: ICMPv6 link-local hops"
+/ipv6 firewall filter add chain=forward action=drop comment="Drop: All Other Forward"
