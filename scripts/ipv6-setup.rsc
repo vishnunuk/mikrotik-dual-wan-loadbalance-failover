@@ -65,3 +65,22 @@
 :do { /ipv6 firewall nat remove [find where comment~"NAT66"] } on-error={}
 /ipv6 firewall nat add chain=srcnat out-interface=$lVivoIf action=masquerade comment="NAT66: Vivo masquerade"
 /ipv6 firewall nat add chain=srcnat out-interface=$lClaroIf action=masquerade comment="NAT66: Claro masquerade"
+
+# --- 8. Firewall IPv6 input ---
+# Espelho do IPv4 com diferencas:
+#   - Sem accept management (ssh/www/winbox) IPv6 — fica IPv4-only
+#   - ICMPv6 nao pode rate-limitar inteiro (NDP/MLD essenciais); rate-limit so echo-request
+#   - Accept link-local source (fe80::/10) necessario pra NDP
+#   - Accept DHCPv6 client reply (UDP 546) pra receber PD da Vivo
+:do { /ipv6 firewall filter remove [find where chain=input] } on-error={}
+/ipv6 firewall filter add chain=input action=drop connection-state=invalid comment="Drop: Invalid Input"
+/ipv6 firewall filter add chain=input action=accept connection-state=established,related,untracked comment="Accept: Established Input"
+/ipv6 firewall filter add chain=input action=accept protocol=icmpv6 icmp-options=133:0,134:0,135:0,136:0,141:0,142:0 comment="Accept: NDP"
+/ipv6 firewall filter add chain=input action=accept protocol=icmpv6 icmp-options=130:0,131:0,132:0,143:0 comment="Accept: MLD"
+/ipv6 firewall filter add chain=input action=accept protocol=icmpv6 icmp-options=1:0-255,2:0,3:0-255,4:0-255 comment="Accept: ICMPv6 errors"
+/ipv6 firewall filter add chain=input action=accept protocol=icmpv6 icmp-options=128:0 limit=50,5:packet comment="Limit: ICMPv6 echo-request"
+/ipv6 firewall filter add chain=input action=drop protocol=icmpv6 icmp-options=128:0 comment="Drop: Excess ICMPv6 echo"
+/ipv6 firewall filter add chain=input action=accept src-address=fe80::/10 comment="Accept: Link-local Source"
+/ipv6 firewall filter add chain=input action=accept in-interface=$lLanIf comment="Accept: LAN Input"
+/ipv6 firewall filter add chain=input action=accept protocol=udp dst-port=546 comment="Accept: DHCPv6 client"
+/ipv6 firewall filter add chain=input action=drop comment="Drop: WAN Input (default)"
