@@ -50,6 +50,11 @@
 :do { /ipv6 dhcp-client remove [find where comment~"DHCPv6: Vivo"] } on-error={}
 /ipv6 dhcp-client add interface=$lVivoIf request=address,prefix add-default-route=yes default-route-distance=1 use-peer-dns=no pool-name=vivo-pd6 pool-prefix-length=64 comment="DHCPv6: Vivo PD"
 
+# pppoe-vivo precisa de global pra NAT66 ter source. Vivo nao entrega IA_NA,
+# entao carve out 1 /64 do PD via from-pool. Endereco e ::1 do /64 atribuido.
+:do { /ipv6 address remove [find where comment="IPv6: Vivo PD-derived WAN"] } on-error={}
+/ipv6 address add address=::1 from-pool=vivo-pd6 interface=$lVivoIf advertise=no comment="IPv6: Vivo PD-derived WAN"
+
 # Claro: SLAAC e default route automaticos via accept-RA=all (acima), nada a configurar.
 
 # ECMP IPv6: dois default routes a distance=1 (Vivo via PPP/DHCPv6, Claro via SLAAC RA).

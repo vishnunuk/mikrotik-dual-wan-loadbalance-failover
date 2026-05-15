@@ -10,6 +10,7 @@
 
 # LAN address + ND (restaura default nd entry que o setup desabilitou)
 :do { /ipv6 address remove [find where comment~"IPv6: LAN ULA"] } on-error={}
+:do { /ipv6 address remove [find where comment="IPv6: Vivo PD-derived WAN"] } on-error={}
 :do { /ipv6 nd remove [find where comment~"IPv6: LAN RA"] } on-error={}
 :do { /ipv6 nd set [find default=yes] disabled=no } on-error={}
 
