@@ -58,3 +58,10 @@
 # --- 6. Address-list LocalTraffic6 (espelho IPv4 LocalTraffic) ---
 :do { /ipv6 firewall address-list remove [find where list="LocalTraffic6"] } on-error={}
 /ipv6 firewall address-list add list=LocalTraffic6 address=$lLanULAPrefix comment="LAN ULA"
+
+# --- 7. NAT66 masquerade nas duas WANs ---
+# Conntrack mantem cada conexao pinned na WAN escolhida pelo ECMP hash.
+# Resolve uRPF: pacote sai com src=address da WAN de saida, nunca cross-WAN.
+:do { /ipv6 firewall nat remove [find where comment~"NAT66"] } on-error={}
+/ipv6 firewall nat add chain=srcnat out-interface=$lVivoIf action=masquerade comment="NAT66: Vivo masquerade"
+/ipv6 firewall nat add chain=srcnat out-interface=$lClaroIf action=masquerade comment="NAT66: Claro masquerade"
