@@ -13,6 +13,10 @@
 #
 # Rollback: /import scripts/ipv6-rollback.rsc
 
+# AVISO: re-importar este script remove TODAS regras em /ipv6 firewall filter
+# (chain=input e chain=forward), incluindo regras adicionadas manualmente.
+# Se voce mantem regras IPv6 customizadas, salve-as antes de re-importar.
+
 :local lVivoIf "pppoe-vivo"
 :local lClaroIf "sfp1"
 :local lLanIf "bridge-lan"
@@ -46,12 +50,17 @@
 
 # Claro: SLAAC e default route automaticos via accept-RA whitelist (acima), nada a configurar.
 
+# ECMP IPv6: dois default routes a distance=1 (Vivo via PPP/DHCPv6, Claro via SLAAC RA).
+# Kernel faz hash. NAT66 nas saidas garante uRPF OK (cada conn pinned por conntrack).
+
 # --- 5. LAN: ULA + ND/RA ---
 # advertise=yes faz hosts LAN derivarem endereco SLAAC do prefixo /64.
 :do { /ipv6 address remove [find where comment~"IPv6: LAN ULA"] } on-error={}
 /ipv6 address add address=$lLanULA interface=$lLanIf advertise=yes comment="IPv6: LAN ULA"
 
 # SLAAC puro: managed=no other=no (sem DHCPv6 server na LAN).
+# Desabilita default-all (envia RA em todas interfaces) — substituido pela regra especifica do bridge-lan.
+/ipv6 nd set [find default=yes] disabled=yes
 :do { /ipv6 nd remove [find where interface=$lLanIf and !default] } on-error={}
 /ipv6 nd add interface=$lLanIf advertise-mac-address=yes managed-address-configuration=no other-configuration=no comment="IPv6: LAN RA"
 
@@ -99,7 +108,9 @@
 # --- 10. Firewall IPv6 raw (bogons + DoT block) ---
 # Espelho do raw IPv4: bogons na WAN (early-drop pre-conntrack) + block DoT da LAN.
 # fc00::/7 cobre todo ULA externo (LAN ULA vem por bridge-lan, nao por WAN).
-:do { /ipv6 firewall raw remove [find where comment~"IPv6 bogon" or comment~"IPv6: Block DoT"] } on-error={}
+:do { /ipv6 firewall raw remove [find where comment~"IPv6 bogon" or comment~"IPv6: Block DoT" or comment~"IPv6 SYN"] } on-error={}
+/ipv6 firewall raw add chain=prerouting protocol=tcp tcp-flags=syn in-interface-list=WAN limit=200,5:packet action=accept comment="IPv6 SYN: Rate Limit"
+/ipv6 firewall raw add chain=prerouting protocol=tcp tcp-flags=syn in-interface-list=WAN action=drop comment="IPv6 SYN: Drop Excess"
 /ipv6 firewall raw add chain=prerouting action=drop src-address=::/128 in-interface-list=WAN comment="IPv6 bogon: unspecified src from WAN"
 /ipv6 firewall raw add chain=prerouting action=drop src-address=fc00::/7 in-interface-list=WAN comment="IPv6 bogon: ULA from WAN"
 /ipv6 firewall raw add chain=prerouting action=drop src-address=::1/128 in-interface-list=WAN comment="IPv6 bogon: loopback from WAN"
