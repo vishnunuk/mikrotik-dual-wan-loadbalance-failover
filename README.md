@@ -12,7 +12,7 @@ Suitable for environments requiring high availability across multiple ISP connec
 ## Features
 
 ### Load Balancing
-- **PCC Load Balancing**: Distributes traffic across both WANs with configurable ratios (e.g., 1:1, 2:1, 3:1).
+- **PCC Load Balancing**: Distributes traffic equally (1:1) across both WANs using Per Connection Classifier.
 - **Dynamic Hashing**: Utilizes `both-addresses-and-ports` hashing by default for optimal bandwidth aggregation across multiple connections.
 - **Bandwidth Aggregation**: Combines throughput from multiple ISPs.
 - **Per-Connection Distribution**: Ensures each TCP/UDP connection maintains a single ISP route, preventing packet reordering.
@@ -156,6 +156,15 @@ Transfer `mikrotik-dual-wan.rsc` to the router using Winbox (Files -> Drag and d
 /tool ping 1.1.1.1 count=100
 ```
 
+### 7. Verify Packet Loss (Important)
+After applying the configuration and rebooting, verify there is **zero packet loss** using [openpacketloss.com](https://openpacketloss.com/):
+
+> This test uses WebRTC DataChannel — the same UDP protocol stack used by **Zoom, Discord, Microsoft Teams, and Valorant**. The result it returns is what your real-time applications are actually working with.
+
+**Expected result**: 0% Upload Loss, 0% Download Loss.
+
+If you see upload packet loss, check the [Packet Loss Troubleshooting](#packet-loss-with-real-time-applications) section below.
+
 ---
 
 ## Architecture and Logic
@@ -213,11 +222,16 @@ Multi-threaded applications or downloads utilizing parallel connections will gen
 ## Configuration Tuning
 
 ### Load Balance Ratio
-Adjust ratios to favor specific interfaces based on bandwidth capacity:
+
+> [!CAUTION]
+> **Keep the ratio at 1:1.** Uneven ratios (e.g., 2:5, 3:1) create more PCC buckets and cause **UDP packet loss of 25-30%** on real-time applications like Zoom, Discord, gaming, and VoIP. This happens because WebRTC's STUN discovery and DataChannel may hash to different ISPs with more buckets, causing the remote server to see packets from mismatched public IPs. See [Packet Loss Troubleshooting](#packet-loss-with-real-time-applications) for details.
+
 ```routeros
-:local lLBRatio1 3  # ISP1 processes 75% of new connections
-:local lLBRatio2 1  # ISP2 processes 25% of new connections
+:local lLBRatio1 1  # ISP1 — 50% of new connections
+:local lLBRatio2 1  # ISP2 — 50% of new connections
 ```
+
+With a 1:1 ratio, bandwidth aggregation still works — you get the combined throughput of both ISPs (e.g., 40 Mbps + 100 Mbps = ~140 Mbps) because different connections are distributed across both WANs.
 
 ### Monitor IP Adjustment
 Specify alternative monitoring targets:
@@ -258,6 +272,33 @@ Configure SMTP notification parameters:
 ```
 - Verify the presence of both `ISP1_conn` and `ISP2_conn` marks.
 - Review mangle rules (`/ip firewall mangle print`) if marks are missing.
+
+### Packet Loss with Real-Time Applications
+
+If [openpacketloss.com](https://openpacketloss.com/) reports **upload packet loss (25-30%)** while download loss is 0%, the issue is caused by **uneven PCC ratios**.
+
+**Why this happens:**
+
+WebRTC (used by Zoom, Discord, Teams, Valorant, and packet loss tests) establishes connections in multiple steps:
+1. **STUN discovery** — browser sends UDP to a STUN server to discover its public IP
+2. **DataChannel** — browser sends UDP to the media/test server
+
+With `both-addresses-and-ports` PCC, each connection hashes based on source IP + destination IP + source port + destination port. Since STUN and DataChannel go to **different servers/ports**, they produce **different hashes**.
+
+With an **uneven ratio** like 2:5 (7 PCC buckets), the STUN request and DataChannel are more likely to hash to **different ISPs**:
+- STUN discovers public IP via ISP-A → reports this IP to the server
+- DataChannel goes through ISP-B → server receives packets from a **different** public IP
+- Server counts the mismatched packets as **lost** → ~28-31% upload loss (matching the minority ISP's share)
+
+With a **1:1 ratio** (2 PCC buckets), the hash distribution keeps related connections on the same ISP.
+
+**Fix:** Set the load balance ratio to 1:1:
+```routeros
+:local lLBRatio1 1
+:local lLBRatio2 1
+```
+
+Verify with [openpacketloss.com](https://openpacketloss.com/) — expected result: **0% loss on both upload and download**.
 
 ### Failover Event Logs
 ```routeros
