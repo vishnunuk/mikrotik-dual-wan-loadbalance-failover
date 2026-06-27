@@ -213,18 +213,34 @@ add chain=output dst-address=172.16.0.0/12 action=return comment="Output Bypass:
 # PCC Classification Loop
 :local pccIndex 0
 :while ($pccIndex < $lLBRatio1) do={
-    /ip firewall mangle add chain=prerouting in-interface=$lLANInterface connection-state=new connection-mark=no-mark \
+    # TCP - Aggressive Load Balancing (Bandwidth Aggregation)
+    /ip firewall mangle add chain=prerouting in-interface=$lLANInterface protocol=tcp connection-state=new connection-mark=no-mark \
         per-connection-classifier=("both-addresses-and-ports:" . $PCCTotal . "/" . $pccIndex) \
         action=mark-connection new-connection-mark=ISP1_conn passthrough=yes \
-        comment=("PCC: ISP1 (" . ($pccIndex + 1) . "/" . $PCCTotal . ")")
+        comment=("PCC: ISP1 TCP (" . ($pccIndex + 1) . "/" . $PCCTotal . ")")
+        
+    # UDP/Other - Stable Load Balancing (Real-Time Apps, Tailscale, WebRTC)
+    /ip firewall mangle add chain=prerouting in-interface=$lLANInterface protocol=!tcp connection-state=new connection-mark=no-mark \
+        per-connection-classifier=("src-address:" . $PCCTotal . "/" . $pccIndex) \
+        action=mark-connection new-connection-mark=ISP1_conn passthrough=yes \
+        comment=("PCC: ISP1 UDP/Other (" . ($pccIndex + 1) . "/" . $PCCTotal . ")")
+        
     :set pccIndex ($pccIndex + 1)
 }
 
 :while ($pccIndex < $PCCTotal) do={
-    /ip firewall mangle add chain=prerouting in-interface=$lLANInterface connection-state=new connection-mark=no-mark \
+    # TCP - Aggressive Load Balancing (Bandwidth Aggregation)
+    /ip firewall mangle add chain=prerouting in-interface=$lLANInterface protocol=tcp connection-state=new connection-mark=no-mark \
         per-connection-classifier=("both-addresses-and-ports:" . $PCCTotal . "/" . $pccIndex) \
         action=mark-connection new-connection-mark=ISP2_conn passthrough=yes \
-        comment=("PCC: ISP2 (" . ($pccIndex + 1) . "/" . $PCCTotal . ")")
+        comment=("PCC: ISP2 TCP (" . ($pccIndex + 1) . "/" . $PCCTotal . ")")
+        
+    # UDP/Other - Stable Load Balancing (Real-Time Apps, Tailscale, WebRTC)
+    /ip firewall mangle add chain=prerouting in-interface=$lLANInterface protocol=!tcp connection-state=new connection-mark=no-mark \
+        per-connection-classifier=("src-address:" . $PCCTotal . "/" . $pccIndex) \
+        action=mark-connection new-connection-mark=ISP2_conn passthrough=yes \
+        comment=("PCC: ISP2 UDP/Other (" . ($pccIndex + 1) . "/" . $PCCTotal . ")")
+        
     :set pccIndex ($pccIndex + 1)
 }
 
